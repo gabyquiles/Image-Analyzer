@@ -1,0 +1,11 @@
+name = "Image Analyzer"
+description = "Provides some tools to analyze an image"
+core = 7.x
+package = "Other"
+php = 5.3
+dependencies[] = image
+
+; Core files
+files[] = image_analyzer.module
+files[] = template.php
+files[] = inc/image_analyzer.theme.inc

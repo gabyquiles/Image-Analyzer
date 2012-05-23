@@ -1,0 +1,101 @@
+<?php
+/**
+ * Contains hooks used by Image Analyzer
+ */
+ 
+/**
+ * Implements hook_field_formatter_info().
+ */
+function image_analyzer_field_formatter_info() {
+  $formatters = array();
+  
+  if (module_exists('image')) {
+    $formatters = array(
+      'image_analyzer_image' => array(
+        'label' => 'Image Analyzer',
+        'field types' => array('image'),
+      ),
+    );
+  }
+  return $formatters;
+}
+
+/**
+ * Implements hook_field_formatter_view().
+ */
+function image_analyzer_field_formatter_view($entity_type, $entity, $field, $instance, $langcode, $items, $display) {
+  $element = array();
+  if ($entity_type == 'node') {
+    $node_id = $entity->nid;
+  }
+
+  foreach ($items as $delta => $item) {
+    $uri = array(
+      'path' => file_create_url($item['uri']),
+      'options' => array(),
+    );
+    $element[$delta] = array(
+      '#theme' => 'image_analyzer',
+      '#item' => $item,
+      '#image_style' => NULL,
+      '#path' => $uri,
+      '#node_id' => $node_id,
+      '#field_name' => $field['field_name'],
+    );
+    drupal_add_js(array('img_src_'.$delta => file_create_url($item['uri'])), 'setting');
+    drupal_add_js(array('img_src_'.$delta.'_width' => $item['width']), 'setting');
+    drupal_add_js(array('img_src_'.$delta.'_height' => $item['height']), 'setting');
+  }
+  drupal_add_js(drupal_get_path('module', 'image_analyzer').'/js/init.js');
+  drupal_add_css(drupal_get_path('module', 'image_analyzer').'/css/image_analyzer.css');
+  return ($element);
+}
+
+/**
+ * Implements hook_theme
+ */
+function image_analyzer_theme(){
+  return array(
+    'image_analyzer' => array(
+      'variables' => array(
+        'item' => NULL,
+        'path' => NULL,
+        'image_style' => NULL,
+        'node_id' => NULL,
+        'field_name' => NULL,
+      ),
+      //'file' => 'inc/image_analyzer.theme.inc',
+      'template' => 'image_analyzer',
+    ),
+  );
+}
+
+/**
+ * Implements hook_menu
+ */
+function image_analyzer_menu() {
+  $items = array();
+  
+  $items['admin/configuration/media/image_analyzer'] = array(
+    'title' => t('Image Analyzer'),
+    'description' => t('Configure the Image Analyzer moduler'),
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('image_analyzer_configuration_form'),
+    'type' => MENU_NORMAL_ITEM,
+    'access arguments' => array('administer image analyzer'),
+  );
+  dpm($items);
+  return $items;
+}
+
+/**
+ * Implementation of hook_permission().
+ */
+function image_analyzer_permission() {
+  return array(
+  'administer image analyzer' => array(
+    'title' => t('Administer Image Analyzer'),
+    'description' => t('Allow the user administer Image Analyzer settings'),
+  ),
+  );
+}
