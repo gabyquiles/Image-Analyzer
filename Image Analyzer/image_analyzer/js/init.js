@@ -8,16 +8,42 @@
 		ctx.drawImage(img,0,0);
 	
 	
+	var site = site || {models: {}}
+	site.models.Analyzer = function() {
+		var self = this;
+		this.itemsObservables = ko.observableArray();
+		this.init = function(data) {
+			ko.utils.arrayForEach(data, function(item) {
+				self.itemsObservables.push(new site.models.AnalyzerTool(item));
+			});
+		}
+		this.select = function(data,e){
+			//load area
+			//activate tool
+			self.setSelected(data);
+			e.preventDefault();
+		};
+		this.setSelected = function(newSelection) {
+			ko.utils.arrayForEach(self.itemsObservables(), function(item) {
+				item.isSelected(item == newSelection);
+				if(item == newSelection) {
+					item.action();
+				}
+			})
+		}
+	}
+	
+	site.models.AnalyzerTool = function(el) {
+		this.isSelected = ko.observable(false);
+		element = eval(el);
+		this.html = element.area;
+		this.title = element.title;
+		this.action = element.activate;
+	}
 		
-	var ViewModel = function(first, last) {
-this.firstName = ko.observable(first);
-this.lastName = ko.observable(last);
-this.fullName = ko.computed(function() {
-// Knockout tracks dependencies automatically. It knows that fullName depends on firstName and lastName, because these get called when evaluating fullName.
-return this.firstName() + " " + this.lastName();
-}, this);
-};
-ko.applyBindings(new ViewModel("Planet", "Earth")); 
+	var viewModel = new site.models.Analyzer();
+	viewModel.init(Drupal.settings.tools);
+	ko.applyBindings(viewModel,$('#analyzer_tools').get(0));
 
 	})
 })(jQuery);
