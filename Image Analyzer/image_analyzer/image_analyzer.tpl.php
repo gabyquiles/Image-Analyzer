@@ -12,3 +12,4 @@
   <div id="analysis_area">
   </div>
 </div>
+<p>First name: <strong data-bind="text: firstName">todo</strong></p>

@@ -42,10 +42,20 @@ function image_analyzer_field_formatter_view($entity_type, $entity, $field, $ins
       '#node_id' => $node_id,
       '#field_name' => $field['field_name'],
     );
-    drupal_add_js(array('img_src_'.$delta => file_create_url($item['uri'])), 'setting');
-    drupal_add_js(array('img_src_'.$delta.'_width' => $item['width']), 'setting');
-    drupal_add_js(array('img_src_'.$delta.'_height' => $item['height']), 'setting');
+    dpm($item);
+    
+    list($width, $height, $type, $attr) = getimagesize(file_create_url($item['uri']));
+    dpm($width, $height,$type,$attr);
+    $img = array(
+      'src' => file_create_url($item['uri']),
+      'width' => $width,
+      'height' => $height,
+    );
+    
+    drupal_add_js(array('img' => $img), 'setting');
   }
+
+  drupal_add_js(drupal_get_path('module', 'image_analyzer').'/js/knockout-2.1.0.js');
   drupal_add_js(drupal_get_path('module', 'image_analyzer').'/js/init.js');
   drupal_add_css(drupal_get_path('module', 'image_analyzer').'/css/image_analyzer.css');
   return ($element);

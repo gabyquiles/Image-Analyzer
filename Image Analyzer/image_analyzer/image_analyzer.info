@@ -4,6 +4,7 @@ core = 7.x
 package = "Other"
 php = 5.3
 dependencies[] = image
+dependencies[] = knockout
 
 ; Core files
 files[] = image_analyzer.module
