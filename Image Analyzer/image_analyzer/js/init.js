@@ -5,6 +5,7 @@
 		var ctx = $("#image_to_analyze")[0].getContext('2d');
 		var img = new Image();
 		img.src = Drupal.settings.img.src;
+		Drupal.settings.img = img;
 		ctx.drawImage(img,0,0);
 	
 	
