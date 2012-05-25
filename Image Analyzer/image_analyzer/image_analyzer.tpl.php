@@ -6,9 +6,9 @@
     </canvas>
   </div>
   <div id="analyzer_tools" >
-    <div id="buttons">
+    <div id="analyzer_buttons">
       <ul data-bind="foreach:itemsObservables">
-        <li data-bind="css:{ 'selected':isSelected }, click:$parent.select"><button data-bind="text:title"></button></li>
+        <li data-bind="css:{ 'selected':isSelected }, click:$parent.select"><button data-bind="html:title"></button></li>
       </ul>
     </div>
     <div data-bind="foreach:itemsObservables">

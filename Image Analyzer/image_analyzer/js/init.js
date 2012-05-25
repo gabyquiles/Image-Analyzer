@@ -1,12 +1,13 @@
 (function($) {
 	$().ready(function() {
-		$("#image_to_analyze")[0].height = Drupal.settings.img.height;
-		$("#image_to_analyze")[0].width = Drupal.settings.img.width;
+		$("#image_to_analyze")[0].height = Drupal.settings.image_analyzer.img.height;
+		$("#image_to_analyze")[0].width = Drupal.settings.image_analyzer.img.width;
 		var ctx = $("#image_to_analyze")[0].getContext('2d');
 		var img = new Image();
-		img.src = Drupal.settings.img.src;
+		img.src = Drupal.settings.image_analyzer.img.src;
 		Drupal.settings.img = img;
 		ctx.drawImage(img,0,0);
+		ctx.save();
 	
 	
 	var site = site || {models: {}}
@@ -43,7 +44,7 @@
 	}
 		
 	var viewModel = new site.models.Analyzer();
-	viewModel.init(Drupal.settings.tools);
+	viewModel.init(Drupal.settings.image_analyzer.tools);
 	ko.applyBindings(viewModel,$('#analyzer_tools').get(0));
 
 	})
