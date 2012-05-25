@@ -15,18 +15,28 @@ function zoom_activate() {
 			source_context.drawImage(Drupal.settings.img,0,0);
 			
 			var positions = mousePosition(this, evt);
+			positions.x += $(this).parent().scrollLeft();
+			positions.y += $(this).parent().scrollTop();
 			zoom_window.redraw(source_context,positions.x,positions.y);
 			
 			var destination_canvas = $("#zoom_area");
 			var destination_context = destination_canvas[0].getContext("2d");
 			
 			var data = source_context.getImageData(positions.x, positions.y, zoom_window.width,zoom_window.height);
-			//var factor = 2;
+			var factor = 10;
 			//alert(zoom_window.height * factor);
 			
-			//destination_context.drawImage(Drupal.settings.img[], 0, 0, 60,60);
-
-			destination_context.putImageData(data, 0,0);
+			destination_context.drawImage(Drupal.settings.img,
+				positions.x,
+				positions.y,
+				zoom_window.width,
+				zoom_window.height,
+				0,
+				0,
+				zoom_window.width * factor,
+				zoom_window.height * factor);
+			
+			//destination_context.putImageData(data, 0,0);
 			//clear canvas
 			//draw canvas 
 			//draw selection
