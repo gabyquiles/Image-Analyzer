@@ -1,0 +1,162 @@
+<?php
+
+/**
+ * Implements hook_ctools_plugin_api().
+ */
+function point_extract_ctools_plugin_api($module, $api) {
+  if ($module == 'services' && $api == 'services') {
+    return array('version' => 3);
+  }
+}
+
+/**
+ * Implements hook_define_tools().
+ */
+function point_extract_define_tools() {
+  return array(
+    'point_extract' => '_point_extract_callback',
+  );
+}
+
+
+
+function _point_extract_callback() {
+  $module_path = drupal_get_path('module', 'point_extract');
+  drupal_add_js($module_path . '/js/point_extract.js');
+  drupal_add_css($module_path . '/css/point_extract_style.css');
+  return 'point_extract';
+}
+
+
+/**
+ * Implements of hook_services_resources().
+ */
+function point_extract_services_resources() {
+  return array(
+    'image' => array(
+      'targeted_actions' => array(
+        'point_extract' => array(
+          'help' => 'Extract a data point from an image',
+          'callback' => '_extract_data_point',
+          'access callback' => 'user_access',
+          'access arguments' => array('access content'),
+          'access arguments append' => FALSE,
+          'args' => array(
+            array(
+              'name' => 'id',
+              'type' => 'int',
+              'description' => 'The id of the node that contains the image',
+              'source' => array('path' => '0'),
+              'optional' => FALSE,
+            ),
+            array(
+              'name' => 'data',
+              'type' => 'struct',
+              'description' => 'The position data object',
+              'source' => 'data',
+              'optional' => FALSE,
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
+function _extract_data_point($id, $data){
+  $x = ceil($data['x']);
+  $y = ceil($data['y']);
+  $file = file_load($id);
+  $path = drupal_realpath($file->uri);
+  $im = new Imagick($path);
+  $it = $im->getPixelIterator();
+  $it->setIteratorRow($y);
+  $pixel_row = $it->getCurrentIteratorRow();
+  $pixel = $pixel_row[$x];
+  $coords = _coords_conversion($file, $x, $y);
+  $value = _get_conversion($file, $pixel->getIndex());
+
+  return json_encode(array(
+        "y" => $coords['y'],
+        "x" => $coords['x'],
+        "value" => $value));
+}
+
+// After this point, functions are specific to IMaRS
+// TODO: configure this functions to make the module a generic one
+function _coords_conversion($file, $x, $y) {
+  $image = image_load(drupal_realpath($file->uri));
+  $area_field_value = _get_field($file, 'field_area');
+  $area = taxonomy_term_load($area_field_value[0]['tid']);
+
+  $area_coords_field = field_get_items('taxonomy_term', $area, 'field_coordinates');
+  $top = $area_coords_field[0]['top'];
+  $bottom = $area_coords_field[0]['bottom'];
+  $left = $area_coords_field[0]['left'];
+  $right = $area_coords_field[0]['right'];
+  $vres = ($top - $bottom) / $image->info['height'];
+  $hres = ($right - $left) / $image->info['width'];
+  return array(
+    'y' => round($top - ($y * $vres), 2, PHP_ROUND_HALF_UP),
+    'x' => round(($x * $hres) + $left, 2, PHP_ROUND_HALF_UP),
+  );
+}
+
+function _get_conversion($file, $value) {
+  $product_type_field = _get_field($file, 'field_product_type');
+  $term = taxonomy_term_load($product_type_field[0]['tid']);
+  $prod_name = $term->name;
+  switch ($value) {
+    case 251:
+      $value = 'No Data';
+      break;
+
+    case 252:
+      $value = 'Logo';
+      break;
+
+    case 253:
+      $value = 'Logo';
+      break;
+
+    case 254:
+      $value = 'Land';
+      break;
+
+    case 255:
+      $value = 'Coast Line';
+      break;
+
+    case 256:
+      $value = 'River';
+      break;
+
+    default:
+      $value = _defined_conversions($prod_name, $value);
+      break;
+  }
+  return $value;
+}
+
+function _defined_conversions($prod_name, $value) {
+  if ($prod_name === "Sea Surface Temperature" || $prod_name === "sst") {
+    $value = $value * 0.1992 - 2.1;
+  }
+  elseif ($prod_name === "Chlorophyll A" || $prod_name === "chlor_a") {
+    $value = exp((0.00519 * $value) * log(10)) - 1;
+  }
+  elseif ($prod_name === "hotspots") {
+    $value = round($value * ((5.0 - 0.0) / (247.0 + 0.9999) + 0.0), 4, PHP_ROUND_HALF_UP);
+  }
+  elseif ($prod_name === "dhw") {
+    $value = round($value * ((16.0 - 0.0) / (247.0 + 0.9999) + 0.0), 4, PHP_ROUND_HALF_UP);
+  }
+  return $value;
+}
+
+function _get_field($file, $field_name){
+  $usage = file_usage_list($file);
+  $ids = array_keys($usage['file']['node']);
+  $node = node_load(array_pop($ids));
+  return field_get_items('node', $node, $field_name);
+}

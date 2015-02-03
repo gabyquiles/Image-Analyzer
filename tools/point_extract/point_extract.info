@@ -1,0 +1,12 @@
+name = "Point Extract for Image Analyzer"
+description = "Adds a tool to extract values from a PNG to the Image Analyzer moduler"
+core = 7.x
+package = "Images"
+php = 5.2
+dependencies[] = image_analyzer
+dependencies[] = services
+dependencies[] = rest_server
+
+files[] = PNG.php
+files[] = point_extract.module
+files[] = point_extract.services.inc

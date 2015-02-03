@@ -1,0 +1,9 @@
+To be able to use this module you need to have installed php-imagick-2.3.
+yum install ImageMagick
+yum install ImageMagick-devel
+yum install php-devel
+yum install php-pear
+pecl install imagick
+Add extension=imagick.so to /etc/php.d/imagick.ini
+restart apache
+

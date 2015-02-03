@@ -1,0 +1,157 @@
+<?php
+
+/**
+ * @file
+ * Image Analyzer module file
+ * 
+ * This module allows a user to analyze images that are based on actual data
+ */
+
+/**
+ * Implements hook_menu().
+ */
+function image_analyzer_menu() {
+  $items = array();
+
+  $items['admin/config/media/image_analyzer'] = array(
+    'title' => 'Image Analyzer Configuration',
+    'description' => 'Configuration for Image Analyzer module',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('image_analyzer_config_form'),
+    'access arguments' => array('configure image analyzer'),
+    'file' => 'image_analyzer.forms.inc',
+    'type' => MENU_NORMAL_ITEM,
+  );
+
+  $items['image_analyzer/%node'] = array(
+    'title callback' => 'analyze_image_page_title',
+    'title arguments' => array(1),
+    'page callback' => 'analyze_image_page_view',
+    'page arguments' => array(1),
+    'access arguments' => array('analyze images'),
+  );
+
+  return $items;
+}
+
+/**
+ * Implements hook_permission().
+ */
+function image_analyzer_permission() {
+  return array(
+    'analyze images' => array(
+      'title' => t('Analyze an image'),
+      'description' => t('Allows a user to analyze the defined images'),
+    ),
+    'configure image analyzer' => array(
+      'title' => t('Configure Image Analyzer'),
+      'description' => t('Configure the different options in Image Analyzer module'),
+    ),
+  );
+}
+
+/**
+ * Implements of hook_preprocess_HOOK().
+ */
+function image_analyzer_preprocess_field(&$variables) {
+  // Get the content type and field name from the configuration settings.
+  $content_type = variable_get('image_analyzer_content_type', NULL);
+  $field_name = variable_get('image_analyzer_field', NULL);
+  if (isset($content_type) && $variables['element']['#bundle'] == $content_type
+    && isset($field_name) && $variables['element']['#field_name'] == $field_name) {
+    $variables['items'][0]['#path']['path'] = "image_analyzer/" . $variables['element']['#object']->nid;
+  }
+}
+
+/**
+ * Implements of hook_theme().
+ */
+function image_analyzer_theme($existing, $type, $theme, $path) {
+  $module_path = drupal_get_path('module', 'image_analyzer');
+  return array(
+    'image_analyzer' => array(
+      'template' => 'image-analyzer',
+      'variables' => array(
+        'node' => NULL,
+      ),
+      'path' => $module_path . '/theme',
+    ),
+  );
+}
+
+/**
+ * Implements hook_page_view().
+ */
+function analyze_image_page_view($node, $view_mode = "full") {
+  // Build fields content.
+  $node->content = node_view($node, $view_mode);
+  $node->content['#theme'] = 'image_analyzer';
+  return $node->content;
+}
+
+/**
+ * Implements hook_page_title().
+ */
+function analyze_image_page_title($node) {
+  return t("Analyzing ") . $node->title;
+}
+
+
+function template_preprocess_image_analyzer(&$variables) {
+  global $language;
+  $node = $variables['node'];
+  $field_name = variable_get('image_analyzer_field');
+  $field_obj = field_get_items('node', $node, $field_name, $language->language);
+  $variables['image'] = array(
+    '#theme' => 'image',
+    '#path' => $field_obj[0]['uri'],
+  );
+
+  $module_path = drupal_get_path('module', 'image_analyzer');
+  $css_options = array(
+    'group' => CSS_DEFAULT,
+    'media' => 'screen',
+    'preprocess' => FALSE,
+  );
+  drupal_add_css($module_path . '/css/image_analyzer.css', $css_options);
+  //drupal_add_js($module_path . '/js/knockout-2.2.1.js');
+  list($width, $height, $type, $attr) = getimagesize(drupal_realpath($field_obj[0]['uri']));
+  $img = array(
+    'fid' => $field_obj[0]['fid'],
+    'src' => file_create_url($field_obj[0]['uri']),
+    'width' => $width,
+    'height' => $height,
+  );
+  $image_analyzer = array(
+    'image_analyzer' => array(
+      'img' => $img,
+    ),
+  );
+
+  $tools = module_invoke_all('define_tools');
+  foreach ($tools as $name => $callback) {
+    $image_analyzer['image_analyzer']['tools'][] = call_user_func($callback);
+  }
+
+  drupal_add_js($image_analyzer, 'setting');
+  drupal_add_js($module_path . '/js/init.js', array('cache' => false));
+}
+
+/**
+ * Custom hook to define new tools for Image Analyzer.
+ * @return array Key-Value array. Key is the name of the tool and the value is
+ * the callback function for the tool.
+ */
+function image_analyzer_define_tools() {
+  return array(
+    'zoom' => '_zoom_tool_callback',
+  );
+}
+
+function _zoom_tool_callback() {
+  $module_path = drupal_get_path('module', 'image_analyzer');
+  drupal_add_library('system', 'ui.slider');
+  drupal_add_js($module_path . '/js/zoom.js');
+  drupal_add_css($module_path . '/css/zoom_style.css');
+  return 'zoom';
+}

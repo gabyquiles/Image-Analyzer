@@ -1,0 +1,13 @@
+name = "Image Analyzer"
+description = "Provides an interface to analyze imagery"
+core = 7.x
+package = "Images"
+php = 5.2
+dependencies[] = image
+
+files[] = inc/image_analyzer.theme.inc
+files[] = theme/image-analyzer.tpl.php
+files[] = image_analyzer.forms.inc
+files[] = image_analyzer.module
+
+scripts[] = js/knockout-2.2.1.js
