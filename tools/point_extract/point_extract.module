@@ -58,23 +58,75 @@ function point_extract_services_resources() {
             ),
           ),
         ),
+        'coords_extract' => array(
+          'help' => 'Extract a multiple data points',
+          'callback' => '_extract_coords',
+          'access callback' => 'user_access',
+          'access arguments' => array('access content'),
+          'access arguments append' => FALSE,
+          'args' => array(
+            array(
+              'name' => 'id',
+              'type' => 'int',
+              'description' => 'The id of the node that contains the image',
+              'source' => array('path' => '0'),
+              'optional' => FALSE,
+            ),
+            array(
+              'name' => 'data',
+              'type' => 'struct',
+              'description' => 'Array of coordinates',
+              'source' => 'data',
+              'optional' => FALSE,
+            ),
+          ),
+        ),
       ),
     ),
   );
+}
+
+function _extract_coords($id, $data) {
+  $file = file_load($id);
+  $image = image_load(drupal_realpath($file->uri));
+  $area_field_value = _get_field($file, 'field_area');
+  $area = taxonomy_term_load($area_field_value[0]['tid']);
+
+  $area_coords_field = field_get_items('taxonomy_term', $area, 'field_coordinates');
+  $top = $area_coords_field[0]['top'];
+  $bottom = $area_coords_field[0]['bottom'];
+  $left = $area_coords_field[0]['left'];
+  $right = $area_coords_field[0]['right'];
+  $results = array();
+  foreach($data['coords'] as $pair) {
+    try {
+      //convert to tupple
+      list($lat, $lon) = convertToLatLon($pair);
+      //extract data
+      $idxs = _coords2indeces($file, $lon, $lat);
+      $pixel_value = getPixelValue($file, $idxs['x'], $idxs['y']);
+      $value = _get_conversion($file, $pixel_value);
+      $results[] = array(
+        "y" => $lat,
+        "x" => $lon,
+        "value" => $value);
+    } catch (Exception $e) {
+      $results[] = array(
+        "y" => $pair,
+        "x" => "",
+        "value" => "Invalid set of coordinates");
+    }
+  }
+  return json_encode($results);
 }
 
 function _extract_data_point($id, $data){
   $x = ceil($data['x']);
   $y = ceil($data['y']);
   $file = file_load($id);
-  $path = drupal_realpath($file->uri);
-  $im = new Imagick($path);
-  $it = $im->getPixelIterator();
-  $it->setIteratorRow($y);
-  $pixel_row = $it->getCurrentIteratorRow();
-  $pixel = $pixel_row[$x];
+  $pixel_value = getPixelValue($file, $x, $y);
   $coords = _coords_conversion($file, $x, $y);
-  $value = _get_conversion($file, $pixel->getIndex());
+  $value = _get_conversion($file, $pixel_value);
 
   return json_encode(array(
         "y" => $coords['y'],
@@ -82,14 +134,39 @@ function _extract_data_point($id, $data){
         "value" => $value));
 }
 
+function getPixelValue($file, $x, $y) {
+  $path = drupal_realpath($file->uri);
+  $im = new Imagick($path);
+  $it = $im->getPixelIterator();
+  $it->setIteratorRow($y);
+  $pixel_row = $it->getCurrentIteratorRow();
+  $pixel = $pixel_row[$x];
+  return $pixel->getIndex();
+}
+
+function convertToLatLon($pair) {
+  $values = explode(",", $pair);
+  if(count($values) != 2) {
+    throw new Exception("Invalid set of coordinates");
+  }
+  $lat = $values[0];
+  $lon = $values[1];
+  if(!validateFloatInRange($lon, 180, -180) || !validateFloatInRange($lat, 90, -90)) {
+    throw new Exception("Invalid set of coordinates");
+  }
+  return array($lat,$lon);
+}
+
+function validateFloatInRange($float, $max, $min) {
+  return is_numeric($float) && $float >= $min && $float <= $max;
+}
+
 // After this point, functions are specific to IMaRS
 // TODO: configure this functions to make the module a generic one
 function _coords_conversion($file, $x, $y) {
   $image = image_load(drupal_realpath($file->uri));
-  $area_field_value = _get_field($file, 'field_area');
-  $area = taxonomy_term_load($area_field_value[0]['tid']);
 
-  $area_coords_field = field_get_items('taxonomy_term', $area, 'field_coordinates');
+  $area_coords_field = getAreaCoordsField($file);
   $top = $area_coords_field[0]['top'];
   $bottom = $area_coords_field[0]['bottom'];
   $left = $area_coords_field[0]['left'];
@@ -100,6 +177,33 @@ function _coords_conversion($file, $x, $y) {
     'y' => round($top - ($y * $vres), 2, PHP_ROUND_HALF_UP),
     'x' => round(($x * $hres) + $left, 2, PHP_ROUND_HALF_UP),
   );
+}
+
+
+// After this point, functions are specific to IMaRS
+// TODO: configure this functions to make the module a generic one
+function _coords2indeces($file, $x, $y) {
+  $image = image_load(drupal_realpath($file->uri));
+
+  $area_coords_field = getAreaCoordsField($file);
+  $top = $area_coords_field[0]['top'];
+  $bottom = $area_coords_field[0]['bottom'];
+  $left = $area_coords_field[0]['left'];
+  $right = $area_coords_field[0]['right'];
+
+  $vres = ($top - $bottom) / $image->info['height'];
+  $hres = ($right - $left) / $image->info['width'];
+  return array(
+    'y' => round(($top - $y )/ $vres),
+    'x' => round(($x - $left) / $hres),
+  );
+}
+
+function getAreaCoordsField($file) {
+  $area_field_value = _get_field($file, 'field_area');
+  $area = taxonomy_term_load($area_field_value[0]['tid']);
+
+  return field_get_items('taxonomy_term', $area, 'field_coordinates');
 }
 
 function _get_conversion($file, $value) {
@@ -124,7 +228,11 @@ function _get_conversion($file, $value) {
       break;
 
     case 255:
-      $value = 'Coast Line';
+      if($prod_name == "sst") {
+        $value = "No Data";
+      } else {
+        $value = 'Coast Line';
+      }
       break;
 
     case 256:

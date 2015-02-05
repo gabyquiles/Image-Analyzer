@@ -1,3 +1,12 @@
 #image_to_analyze {
     cursor: crosshair;
 }
+
+table.point_extract {
+    margin: 10px auto 30px auto;
+}
+
+textarea.coords_input {
+    width: 200px;
+    height: 100px;
+}

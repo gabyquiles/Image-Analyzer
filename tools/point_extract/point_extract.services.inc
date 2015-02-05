@@ -42,6 +42,9 @@ function point_extract_default_services_endpoint() {
         'point_extract' => array(
           'enabled' => '1',
         ),
+        'coords_extract' => array(
+          'enabled' => '1',
+        ),
       ),
     ),
   );
